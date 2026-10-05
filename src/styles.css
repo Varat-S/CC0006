@@ -408,3 +408,87 @@ td.num {
     grid-template-columns: 1fr;
   }
 }
+
+/* Phase 5 panels */
+.hourly-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.hourly-controls button,
+.file-btn,
+button.apply {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.hourly-controls button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.file-btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+}
+
+.file-btn input[type='file'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.hourly-charts h4 {
+  font-size: 0.9rem;
+  margin: 12px 0 4px;
+}
+
+.disclaimer code {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  background: #eef2f7;
+  padding: 4px 6px;
+  border-radius: 4px;
+  word-break: break-word;
+}
+
+.rec-list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  font-size: 0.88rem;
+}
+
+button.apply {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.optimise-panel h3,
+.economics-panel h3 {
+  font-size: 0.95rem;
+  margin: 14px 0 8px;
+}
+
+.economics-panel h4 {
+  font-size: 0.85rem;
+  margin: 12px 0 6px;
+}

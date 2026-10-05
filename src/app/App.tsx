@@ -12,13 +12,19 @@ import { ComparisonChart } from './ui/ComparisonChart';
 import { ImpactBreakdown } from './ui/ImpactBreakdown';
 import { ProvenancePanel } from './ui/ProvenancePanel';
 import { MethodologyPanel } from './ui/MethodologyPanel';
+import { HourlyPanel } from './ui/HourlyPanel';
+import { OptimisePanel } from './ui/OptimisePanel';
+import { EconomicsPanel } from './ui/EconomicsPanel';
 import { BASELINE_LABEL } from '../data/baselineScenario';
 
-type Tab = 'simulator' | 'compare' | 'data' | 'methodology';
+type Tab = 'simulator' | 'compare' | 'hourly' | 'optimise' | 'economics' | 'data' | 'methodology';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'simulator', label: 'Simulator' },
   { id: 'compare', label: 'Compare' },
+  { id: 'hourly', label: 'Hourly' },
+  { id: 'optimise', label: 'Optimise' },
+  { id: 'economics', label: 'Economics' },
   { id: 'data', label: 'Data & Assumptions' },
   { id: 'methodology', label: 'Methodology' },
 ];
@@ -51,7 +57,9 @@ export default function App() {
       </nav>
 
       <div className="layout">
-        {(tab === 'simulator' || tab === 'compare') && <ControlPanel store={store} />}
+        {(tab === 'simulator' || tab === 'compare' || tab === 'hourly' || tab === 'optimise' || tab === 'economics') && (
+          <ControlPanel store={store} />
+        )}
 
         <main className="results">
           {!isValid && (
@@ -101,6 +109,9 @@ export default function App() {
             </>
           )}
 
+          {tab === 'hourly' && <HourlyPanel scenario={scenario} />}
+          {tab === 'optimise' && <OptimisePanel store={store} />}
+          {tab === 'economics' && <EconomicsPanel store={store} />}
           {tab === 'data' && <ProvenancePanel scenario={scenario} />}
           {tab === 'methodology' && <MethodologyPanel />}
         </main>

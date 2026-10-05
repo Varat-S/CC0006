@@ -31,4 +31,18 @@ describe('App renders', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Envelope retrofit' }));
     expect(screen.getByText(/Baseline vs scenario/i)).toBeTruthy();
   });
+
+  it('renders the Phase 5 tabs: Hourly, Optimise, Economics', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hourly' }));
+    expect(screen.getByText(/representative weekday schedule/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Optimise' }));
+    expect(screen.getByText(/Brute-force search/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Economics' }));
+    expect(screen.getByText(/sustainability dimensions/i)).toBeTruthy();
+    expect(screen.getByText(/Simple payback/i)).toBeTruthy();
+  });
 });

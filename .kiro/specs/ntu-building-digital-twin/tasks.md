@@ -153,13 +153,18 @@ simulation and optimisation last). Each task references the requirements it sati
 
 ## Phase 5 — Optional (non-blocking; do not start before Phase 1–4)
 
-- [ ] 23. Weather CSV (Dataset mode) and hourly simulation with time-series charts
+- [x] 23. Weather CSV (Dataset mode) and hourly simulation with time-series charts
+  - `weatherLoader.ts` (CSV parse + built-in representative day); `hourlySimulation.ts`
+    (24-step sim with weekday schedule); `HourlyPanel` + `HourlyChart` (indoor/outdoor temp,
+    HVAC energy, occupancy over time). Manual mode remains the default.
   - _Requirements: 12.2, 12.3, 12.4_
 
-- [ ] 24. Optimisation mode (brute-force min energy subject to acceptable comfort)
+- [x] 24. Optimisation mode (brute-force min energy subject to acceptable comfort)
+  - `optimise.ts` (exhaustive search over setpoint + 8 toggles, min total energy with
+    acceptable comfort); `OptimisePanel` with recommended config + apply button.
   - _Requirements: 15.1_
 
-- [ ] 25. Economic layer and sustainability-dimension framing
-  - Illustrative capital cost / annual saving / simple payback; environmental/economic/
-    social summary.
+- [x] 25. Economic layer and sustainability-dimension framing
+  - Illustrative capital cost / annual saving / simple payback (`data/economics.ts`,
+    `model/economics.ts`); `EconomicsPanel` with environmental/economic/social summary.
   - _Requirements: 15.2, 15.3, 7.4_

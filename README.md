@@ -92,7 +92,22 @@ Low-cost retrofit, Envelope retrofit, Combined) for quick demos.
 
 ## Status
 
-Phases 1–4 of the project spec are implemented (core model, interactive UI, all core
-interventions, comfort/provenance/breakdown/methodology). Optional Phase 5 items (weather
-CSV / hourly simulation, optimisation search, economic layer) are not yet implemented. See
-`.kiro/specs/ntu-building-digital-twin/` for the full requirements, design, and tasks.
+All five phases of the project spec are implemented:
+
+- **Phases 1–4** — core model, interactive UI, all core interventions,
+  comfort/provenance/breakdown/methodology.
+- **Phase 5 (optional)** — Dataset mode with hourly simulation and time-series charts
+  (built-in representative day or uploaded weather CSV), a brute-force **Optimise** mode
+  (lowest energy subject to acceptable comfort), and an **Economics** tab with illustrative
+  capital cost / annual saving / simple payback plus the three sustainability dimensions
+  (environmental / economic / social).
+
+See `.kiro/specs/ntu-building-digital-twin/` for the full requirements, design, and tasks.
+
+### Dataset mode (hourly)
+
+The **Hourly** tab simulates a 24-hour day using a representative weekday schedule
+(occupied 08:00–20:00). Use the built-in illustrative Singapore-like day, or upload a CSV
+with columns `timestamp, temperature_c, relative_humidity_pct, solar_irradiance_w_m2,
+wind_speed_m_s`. It plots indoor vs outdoor temperature, HVAC energy, and occupancy over
+the day. Manual mode remains the primary, zero-setup demo path.
