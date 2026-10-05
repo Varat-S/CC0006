@@ -94,9 +94,13 @@ so that I can compare their impact on comfort and energy.
 7. WHEN ventilation (ACH) increases in hot-humid outdoor conditions THEN the system SHALL
    be able to show an *increase* in cooling load (i.e. "more ventilation ≠ always better").
 8. WHEN daylight-responsive and/or occupancy-responsive lighting is enabled THEN the
-   system SHALL reduce lighting electricity and the associated internal heat gain.
-9. WHEN reflective roof/façade is enabled THEN the system SHALL reduce absorbed solar heat
-   via a lower solar absorptance.
+   system SHALL reduce effective lighting power and/or effective lighting operating hours
+   (depending on the intervention), reducing both lighting electricity and the associated
+   internal heat gain.
+9. WHEN reflective roof/façade is enabled THEN the system SHALL reduce the roof's solar
+   absorptance (α), which lowers the roof sol-air temperature and therefore the roof
+   conductive heat transfer indoors (NOT by adding absorbed roof solar directly to the
+   indoor load — see Requirement 4.3a).
 10. WHEN improved insulation is selected THEN the system SHALL reduce envelope U-values and
     envelope conductive load.
 11. THE system MAY implement optional interventions if time permits: pre-cooling schedule,
@@ -112,20 +116,38 @@ I can trust the comparison and understand the mechanism.
 1. THE system SHALL use a quasi-steady-state single-zone sensible heat-balance:
    `Q_total = Q_envelope + Q_solar + Q_occupancy + Q_lighting + Q_plug + Q_ventilation`.
 2. THE system SHALL compute envelope conductive load as `Q = U·A·ΔT` with `ΔT = T_out − T_in`
-   for walls, roof, and glazing conduction.
-3. THE system SHALL compute solar gain as
+   for opaque walls and glazing conduction. (Roof conduction uses the sol-air form in 4.2a.)
+2a. THE system SHALL compute roof conductive load using a simplified sol-air temperature:
+   `T_sol-air = T_out + (α · I) / h_o`, then `Q_roof = U_roof · A_roof · (T_sol-air − T_in)`,
+   where α = roof solar absorptance, I = solar irradiance, h_o = outside surface
+   heat-transfer coefficient (configurable). THE system SHALL NOT add absorbed roof solar
+   radiation directly to the indoor heat load.
+3. THE system SHALL compute glazing solar gain as
    `Q_solar = A_glass · SHGC · I_solar · F_orientation · F_shade`, with a simplified
    orientation factor (N lower, S moderate, E high-morning, W high-afternoon).
 4. THE system SHALL compute occupant sensible load as `N · q_person` using a configurable
    per-person sensible value (and latent value if humidity is modelled).
 5. THE system SHALL compute lighting heat as `A_floor · LPD` (reducible by lighting
-   interventions) and plug load as `A_floor · EPD` (optional/advanced).
+   interventions) and plug load as `A_floor · EPD` (optional/advanced). Lighting electricity
+   SHALL be computed independently from HVAC hours (see Requirement 7a).
 6. THE system SHALL compute ventilation load as `Q_vent = ṁ · c_p · ΔT`, deriving airflow
    from `V̇ = ACH · V_room / 3600` and `ṁ = ρ · V̇`, using standard air constants.
-7. THE system SHALL compute HVAC electrical power as `P = Q_cooling / COP` and daily HVAC
-   energy as `E_HVAC = P · effective_runtime_hours`, with COP editable (default 3.0–4.0).
+7. THE system SHALL model a **finite HVAC cooling capacity** (`hvac_capacity_kw`,
+   configurable) and resolve indoor temperature against it:
+   a. WHEN the required sensible cooling load to hold the setpoint is ≤ capacity THEN the
+      indoor temperature SHALL remain at the setpoint and `Q_cooling = required load`.
+   b. WHEN the required load exceeds capacity THEN the system SHALL solve for the
+      equilibrium indoor temperature `T_in` at which `Q_gains(T_in) = Q_HVAC,max`, via a
+      simple bounded numerical search, and SHALL report that elevated `T_in` as the result.
+   c. THE system SHALL compute HVAC electrical power as `P = Q_cooling / COP` (COP editable,
+      default 3.0–4.0) and daily HVAC energy as `E_HVAC = P · effective_runtime_hours`.
+   d. BECAUSE capacity is finite, interventions that reduce heat gains (shading, glazing,
+      insulation, reflective roof) MAY legitimately lower the equilibrium indoor temperature
+      in capacity-limited cases; the system SHALL NOT present indoor temperature as a
+      predicted output while simultaneously assuming unlimited HVAC capacity.
 8. THE model SHALL be deterministic and reproducible: identical inputs always produce
-   identical outputs; no randomness.
+   identical outputs; no randomness (the bounded search SHALL use a fixed tolerance and
+   iteration cap).
 9. THE system SHALL NOT hardcode physical constants throughout the code; all constants
    SHALL live in a single assumptions/config file.
 
@@ -152,8 +174,9 @@ by violating comfort.
 #### Acceptance criteria
 1. THE system SHALL report a simple comfort status: Comfortable / Borderline / Outside
    target.
-2. THE comfort assessment SHALL use predicted indoor air temperature, RH if available, and
-   the fan perceived-temperature offset if the fan is enabled.
+2. THE comfort assessment SHALL use the resolved indoor air temperature (setpoint when
+   within capacity, else the solved equilibrium temperature), RH if available, and the fan
+   perceived-temperature offset if the fan is enabled.
 3. THE comfort thresholds SHALL be configurable in a settings file and SHALL reference
    Singapore / BCA guidance values (not presented as statutory regulation unless confirmed).
 4. THE system SHALL NOT claim full PMV/PPD unless it is properly implemented.
@@ -165,14 +188,41 @@ by violating comfort.
 breakdown, so that I understand what changed and why.
 
 #### Acceptance criteria
-1. THE results panel SHALL display: predicted indoor temperature, comfort status, HVAC
-   kWh/day, lighting kWh/day, total kWh/day, and % change vs baseline.
+1. THE results panel SHALL display: indoor temperature (reported as the maintained setpoint
+   when within capacity, or the solved equilibrium temperature when capacity-limited —
+   labelled accordingly), comfort status, HVAC kWh/day, lighting kWh/day, total kWh/day, and
+   % change vs baseline. Cooling demand/electricity are the primary predicted outputs.
 2. THE system SHALL always present a baseline-vs-scenario comparison (metric, baseline,
    scenario, delta) as a central UI component, using simple bars or side-by-side values.
-3. THE system SHALL present an impact breakdown showing the mechanism (e.g. solar gain,
-   envelope load, occupancy load, ventilation load, lighting heat, HVAC runtime, fan
-   electricity) as percentage change and/or kWh/day contribution.
+3. THE impact breakdown SHALL show changes in **physical intermediate quantities** stated as
+   baseline → scenario value with a %/absolute delta (e.g. solar heat gain, envelope
+   conduction, lighting heat, ventilation load each in kW; HVAC runtime in hours; fan
+   electricity in kWh/day). THE system SHALL NOT present intervention-attributed savings as
+   if they were independently additive, so that interactions between multiple interventions
+   are not double-counted.
+   Example format:
+   ```
+   Solar heat gain      3.2 kW → 2.1 kW   (-34%)
+   Envelope conduction  1.5 kW → 1.2 kW   (-20%)
+   Lighting heat        0.8 kW → 0.5 kW   (-38%)
+   Ventilation load     0.9 kW → 1.1 kW   (+22%)
+   HVAC runtime         12 h  → 8 h       (-33%)
+   ```
 4. THE system MAY optionally display predicted RH, a CO₂ proxy, and carbon emissions.
+
+## Requirement 7a — Independent lighting energy
+
+**User story:** As a user, I want lighting electricity computed on its own schedule, so that
+lighting energy does not falsely track HVAC hours.
+
+#### Acceptance criteria
+1. THE system SHALL expose a separate `lighting_hours_per_day` control, independent of
+   `ac_hours_per_day`.
+2. THE system SHALL compute `E_lighting = LPD · A_floor · lighting_hours_per_day` using the
+   effective LPD and hours after any lighting-control intervention.
+3. Daylight-responsive lighting SHALL reduce effective lighting power (LPD); occupancy-
+   responsive lighting SHALL reduce effective lighting operating hours; both reductions
+   SHALL propagate to lighting electricity and lighting internal heat gain.
 
 ## Requirement 8 — Scenario presets
 
@@ -191,12 +241,17 @@ breakdown, so that I understand what changed and why.
 understand the model's limitations.
 
 #### Acceptance criteria
-1. THE system SHALL tag every parameter with a source class: PUBLIC NTU DATA, PUBLIC
-   SINGAPORE DATA, ENGINEERING REFERENCE, MANUFACTURER SPECIFICATION, ASSUMPTION, USER
-   INPUT.
-2. THE system MAY additionally tag a confidence level (High / Medium / Low).
-3. THE system SHALL provide a Data & Assumptions view that lists every parameter, its
-   value, and its source class, always visible or one click away.
+1. THE system SHALL tag every parameter with a structured provenance record containing:
+   `sourceClass` (PUBLIC_NTU_DATA | PUBLIC_SINGAPORE_DATA | ENGINEERING_REFERENCE |
+   MANUFACTURER_SPECIFICATION | ASSUMPTION | USER_INPUT), `sourceTitle`, `sourceUrl`,
+   `accessedDate`, `note`, and `confidence` (high | medium | low). The same structure
+   SHALL apply to NTU, Singapore-weather, BCA, manufacturer, assumption, and user-input
+   values. Fields that do not apply (e.g. `sourceUrl` for a user input) MAY be null/empty.
+2. THE confidence level (high / medium / low) SHALL be part of the provenance record.
+3. THE Data & Assumptions view SHALL list every parameter with its value and full
+   provenance record so it answers both "What kind of source is this?" and "Where exactly
+   did this value come from?" (title, URL, accessed date, note). It SHALL be always visible
+   or one click away.
 4. THE system SHALL store material presets (glazing, roof, etc.) in a clean data file and
    SHALL document values as illustrative unless sourced.
 5. THE system SHALL NOT invent NTU-specific room dimensions, HVAC capacity, exact glazing
@@ -265,6 +320,11 @@ see broken numbers.
 2. WHEN outdoor temperature is at or below the setpoint THEN the system SHALL NOT produce
    negative cooling electricity (cooling load floored at 0).
 3. THE system SHALL NEVER return NaN, Infinity, or negative electricity.
+4. THE system SHALL validate geometry/inputs and enforce at minimum:
+   `floor_area > 0`, `ceiling_height > 0`, `ACH >= 0`, `occupancy >= 0`, and
+   `window_area <= gross_wall_area` (gross wall area derived from floor area and ceiling
+   height). WHEN a constraint is violated THEN the system SHALL show a clear validation
+   message rather than silently computing an impossible geometry.
 
 ## Requirement 14 — Testing and validation
 

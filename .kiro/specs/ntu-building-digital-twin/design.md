@@ -150,7 +150,9 @@ interface Scenario {
     lighting_w_m2: number;
     plug_load_w_m2: number;
     ac_hours_per_day: number;
+    lighting_hours_per_day: number;  // INDEPENDENT of ac_hours_per_day
     hvac_cop: number;                // editable in advanced panel
+    hvac_capacity_kw: number;        // finite cooling capacity (editable, advanced)
     occupied_fraction: number;       // used by occupancy-responsive AC
   };
   interventions: {
@@ -171,28 +173,36 @@ volume) are computed in the model and documented, not stored as hidden magic.
 
 ### SimulationResult (output)
 
+Heat gains are a function of the indoor temperature (`T_in`), because envelope, roof
+sol-air, and ventilation terms all depend on `ΔT`. We therefore model gains as
+`gains(T_in)` and resolve `T_in` against finite capacity (see HVAC energy below).
+
 ```ts
-interface HeatGains {               // all in W (sensible)
-  envelope: number;                 // walls + roof + window conduction
-  solar: number;
+interface HeatGains {               // all in W (sensible), evaluated at a given T_in
+  envelope: number;                 // opaque walls + window conduction
+  roof: number;                     // sol-air driven roof conduction (separate term)
+  solar: number;                    // glazing solar gain only
   occupancy: number;
   lighting: number;
   plug: number;
-  ventilation: number;              // can be negative only if T_out < T_in; floored in energy stage
+  ventilation: number;              // can be negative only if T_out < T_in
   total: number;
 }
 
 interface SimulationResult {
-  gains: HeatGains;
-  cooling_load_w: number;           // max(0, total sensible load to remove)
+  gains: HeatGains;                 // evaluated at the resolved indoor_temp_c
+  required_load_w: number;          // load to hold setpoint (max(0, gains@setpoint))
+  cooling_load_w: number;           // min(required_load, capacity)
+  capacity_limited: boolean;        // true when required_load > capacity
   hvac_power_kw: number;            // cooling_load / COP
   effective_ac_hours: number;       // ac_hours × occupied_fraction if occupancy AC on
   hvac_kwh_day: number;
-  lighting_kwh_day: number;
+  lighting_kwh_day: number;         // from lighting_hours_per_day, independent of HVAC
   fan_kwh_day: number;
   plug_kwh_day: number;             // if plug load enabled
   total_kwh_day: number;
-  indoor_temp_c: number;            // ≈ setpoint when AC meets load; drifts if AC off
+  indoor_temp_c: number;            // = setpoint when within capacity; solved equilibrium when capacity_limited; drifts to outdoor if AC off
+  indoor_temp_basis: 'setpoint' | 'equilibrium' | 'ac_off'; // for honest labelling in UI
   perceived_temp_c: number;         // indoor_temp − fan_offset when fan on
   indoor_rh_pct?: number;           // only if humidity model active
   comfort: 'comfortable' | 'borderline' | 'outside_target';
@@ -201,8 +211,20 @@ interface SimulationResult {
 
 ### ComparisonResult (scenario vs baseline)
 
+The impact breakdown reports **physical intermediate quantities** (baseline → scenario),
+not per-intervention attributed savings, to avoid double-counting interactions
+(Requirement 7.3).
+
 ```ts
 interface MetricDelta { baseline: number; scenario: number; delta_abs: number; delta_pct: number; }
+
+interface BreakdownRow {
+  label: string;                    // e.g. "Solar heat gain"
+  unit: 'kW' | 'h' | 'kWh/day';
+  baseline: number;
+  scenario: number;
+  delta_pct: number;
+}
 
 interface ComparisonResult {
   metrics: {
@@ -212,7 +234,9 @@ interface ComparisonResult {
     total_kwh_day: MetricDelta;
   };
   comfort: { baseline: Comfort; scenario: Comfort };
-  impact_breakdown: Array<{ label: string; delta_pct?: number; delta_kwh_day?: number }>;
+  impact_breakdown: BreakdownRow[]; // solar gain, envelope conduction, roof conduction,
+                                    // lighting heat, ventilation load (kW); HVAC runtime (h);
+                                    // fan electricity (kWh/day) — each baseline → scenario
 }
 ```
 
@@ -228,13 +252,16 @@ export const CONSTANTS = {
   person_sensible_w: 75,
   person_latent_w: 55,
   default_hvac_cop: 3.5,
+  default_hvac_capacity_kw: 20,   // finite cooling capacity (illustrative)
+  outside_surface_h_o: 25,        // W/(m²·K), outside surface heat-transfer coeff (sol-air)
   default_fan_power_w: 50,
   fan_comfort_offset_c: 0.8,
   shading_factor: { none: 1.0, moderate: 0.75, high: 0.65 },
-  daylight_lighting_factor: 0.70,
-  occupancy_lighting_factor: 0.75,
+  daylight_lighting_factor: 0.70,   // reduces effective lighting POWER (LPD)
+  occupancy_lighting_factor: 0.75,  // reduces effective lighting HOURS
   occupancy_control_runtime_factor: 0.75, // fallback when occupied_fraction not set
   orientation_factor: { north: 0.4, south: 0.7, east: 0.85, west: 1.0 },
+  equilibrium_solver: { t_min_c: 18, t_max_c: 50, tol_c: 0.01, max_iter: 60 },
 };
 ```
 
@@ -245,22 +272,34 @@ export const CONSTANTS = {
 - `roof_area = floor_area`.
 - These are clearly commented as simplifying assumptions (Requirement 1.6).
 
-### Envelope — `Q = U·A·ΔT`, `ΔT = T_out − T_in`
-Sum conductive gains for opaque walls, roof, and window glass. Improved insulation lowers
-`wall_u_value`/`roof_u_value` per `insulation_level`; low-E lowers `window_u_value`.
+### Envelope (opaque walls + window conduction) — `Q = U·A·ΔT`, `ΔT = T_out − T_in`
+Sum conductive gains for opaque walls and window glass. Improved insulation lowers
+`wall_u_value` per `insulation_level`; low-E lowers `window_u_value`. The roof is handled
+separately below via sol-air (it is driven by absorbed solar, not plain `T_out`).
 
-### Solar — `Q_solar = A_glass · SHGC · I · F_orientation · F_shade`
-`F_shade` from the shading dropdown; `F_orientation` from the simplified factor table.
-Reflective roof adds an absorbed-roof-solar term scaled by `roof_solar_absorptance`
-(baseline 0.75 → reflective 0.30), reducing solar heat. The orientation factor is clearly
-labelled simplified; hourly solar geometry is a future replacement, not an MVP claim.
+### Roof — sol-air temperature (Requirement 4.2a)
+`T_sol-air = T_out + (α · I) / h_o`, then `Q_roof = U_roof · A_roof · (T_sol-air − T_in)`,
+where α = `roof_solar_absorptance`, I = solar irradiance, h_o = `outside_surface_h_o`.
+A **reflective roof lowers α** (baseline 0.75 → reflective 0.30), which lowers `T_sol-air`
+and therefore roof conduction indoors. Absorbed roof solar is **never** added directly to
+the indoor load. Improved insulation lowers `roof_u_value`.
+
+### Solar (glazing only) — `Q_solar = A_glass · SHGC · I · F_orientation · F_shade`
+`F_shade` from the shading dropdown; `F_orientation` from the simplified factor table. The
+orientation factor is clearly labelled simplified; hourly solar geometry is a future
+replacement, not an MVP claim. (Roof solar is handled by the sol-air term above, not here.)
 
 ### Internal gains
 - Occupancy sensible: `N · person_sensible_w`.
-- Lighting heat: `A_floor · effective_LPD`, where effective LPD is reduced by the daylight
-  and/or occupancy lighting factors when enabled. The same reduced lighting also lowers
-  lighting electricity.
+- Lighting heat: `A_floor · effective_LPD`, where **daylight-responsive** control reduces
+  effective LPD (× `daylight_lighting_factor`). This reduced LPD lowers lighting heat.
 - Plug: `A_floor · EPD` (optional/advanced; defaults modest).
+
+### Lighting electricity (independent of HVAC — Requirement 7a)
+`E_lighting = effective_LPD · A_floor · effective_lighting_hours / 1000` (kWh/day), using
+`lighting_hours_per_day`, NOT `ac_hours_per_day`. **Daylight-responsive** control reduces
+effective LPD; **occupancy-responsive** control reduces effective lighting hours
+(× `occupancy_lighting_factor`). Both propagate to lighting electricity and lighting heat.
 
 ### Ventilation — `Q_vent = ṁ·c_p·ΔT`
 `V̇ = ACH · volume / 3600`; `ṁ = ρ · V̇`. In hot outdoor conditions `ΔT>0` so more ACH
@@ -274,12 +313,29 @@ modelling is future work. If enabled, a simplified moisture balance (outdoor RH 
 occupant latent + ventilation latent − HVAC moisture removal) estimates indoor RH; it is
 gated behind a flag so no fake precise RH is ever shown.
 
-### HVAC energy
-`cooling_load_w = max(0, gains.total)` (floors negative loads → Requirement 13).
-`hvac_power_kw = cooling_load_w / 1000 / COP`. Effective runtime =
-`ac_hours × occupied_fraction` when occupancy-AC is on, else `ac_hours`; AC off ⇒ 0 kWh and
-indoor temperature allowed to drift toward outdoor (no negative electricity).
+### HVAC energy and indoor-temperature resolution (Requirement 4.7)
+HVAC capacity is **finite** (`hvac_capacity_kw`). The indoor temperature is resolved
+honestly rather than assumed:
+1. Compute `required_load_w = max(0, gains(T_in = setpoint).total)` — the load needed to
+   hold the setpoint. (Negative loads floored at 0 → Requirement 13.)
+2. **Within capacity:** if `required_load_w ≤ capacity`, then `indoor_temp_c = setpoint`
+   (`indoor_temp_basis = 'setpoint'`) and `cooling_load_w = required_load_w`.
+3. **Capacity-limited:** if `required_load_w > capacity`, solve for the equilibrium `T_in`
+   where `gains(T_in).total = capacity` using a bounded bisection over
+   `equilibrium_solver` (fixed tolerance/iteration cap → deterministic). This yields an
+   elevated `indoor_temp_c` (`indoor_temp_basis = 'equilibrium'`) with
+   `cooling_load_w = capacity`. Because gains fall as `T_in` rises (ΔT shrinks), a unique
+   root exists in the bracket; `gains(T_in)` is monotonic in `T_in`.
+4. **AC off:** `cooling_load_w = 0`, `hvac_kwh_day = 0`, `indoor_temp_c` drifts toward
+   outdoor (`indoor_temp_basis = 'ac_off'`). No negative electricity.
+
+Then `hvac_power_kw = cooling_load_w / 1000 / COP`; effective runtime =
+`ac_hours × occupied_fraction` when occupancy-AC is on, else `ac_hours`;
 `hvac_kwh_day = hvac_power_kw × effective_runtime`.
+
+This makes gain-reducing interventions (shading, glazing, insulation, reflective roof)
+legitimately lower the **equilibrium indoor temperature** in capacity-limited cases — we
+never claim they change indoor air temperature while assuming unlimited capacity.
 
 ### Fan (Requirement 3.4)
 Adds `fan_kwh_day = fan_power_w/1000 × hours`. Does **not** change `indoor_temp_c`; instead
@@ -293,8 +349,11 @@ target, with a status badge. No PMV/PPD claim.
 
 ### Totals & comparison
 `total_kwh_day = hvac + lighting + fan (+ plug)`. `compare()` computes per-metric absolute
-and % deltas vs the baseline result and builds the impact breakdown (per-mechanism %/kWh
-changes) for the breakdown panel.
+and % deltas vs the baseline result. The **impact breakdown reports physical intermediate
+quantities** as baseline → scenario (solar gain, envelope conduction, roof conduction,
+lighting heat, ventilation load in kW; HVAC runtime in h; fan electricity in kWh/day) each
+with its own %. It does **not** sum per-intervention attributed savings, so interactions
+between multiple simultaneous interventions are never double-counted (Requirement 7.3).
 
 ## UI Design
 
@@ -315,11 +374,27 @@ changes) for the breakdown panel.
 
 ## Data, Provenance & Weather
 
-- **Provenance:** `/data/provenance.ts` maps each parameter to a source class (PUBLIC NTU
-  DATA / PUBLIC SINGAPORE DATA / ENGINEERING REFERENCE / MANUFACTURER SPECIFICATION /
-  ASSUMPTION / USER INPUT) and optional confidence; surfaced in the Data & Assumptions view.
+- **Provenance:** `/data/provenance.ts` maps each parameter to a **structured provenance
+  record** so the Data & Assumptions view answers both "what kind of source?" and "where
+  exactly?":
+  ```ts
+  type SourceClass =
+    | 'PUBLIC_NTU_DATA' | 'PUBLIC_SINGAPORE_DATA' | 'ENGINEERING_REFERENCE'
+    | 'MANUFACTURER_SPECIFICATION' | 'ASSUMPTION' | 'USER_INPUT';
+
+  interface Provenance {
+    sourceClass: SourceClass;
+    sourceTitle: string;          // e.g. "ASHRAE Fundamentals 2021, Ch. 15"
+    sourceUrl: string | null;     // link when one exists
+    accessedDate: string | null;  // ISO date the value was taken
+    note: string;                 // e.g. "Representative value; not NTU-specific"
+    confidence: 'high' | 'medium' | 'low';
+  }
+  ```
+  The same structure is used for NTU, Singapore-weather, BCA, manufacturer, assumption, and
+  user-input values (inapplicable fields may be null).
 - **Materials:** `/data/materials.ts` holds glazing/roof presets with documented,
-  illustrative values.
+  illustrative values, each carrying a `Provenance` record.
 - **Weather:** Manual mode is default. Optional Dataset mode uses `weatherLoader.ts` to
   parse CSV (timestamp, temperature_c, relative_humidity_pct, solar_irradiance_w_m2,
   wind_speed_m_s); optional hourly simulation iterates timesteps and plots indoor/outdoor
@@ -327,6 +402,11 @@ changes) for the breakdown panel.
 
 ## Error Handling & Edge Cases (Requirement 13)
 
+- **Geometry/input validation (Requirement 13.4):** a `validateScenario(scenario)` function
+  enforces `floor_area > 0`, `ceiling_height > 0`, `ACH >= 0`, `occupancy >= 0`, and
+  `window_area <= gross_wall_area` (gross wall area derived from floor area + ceiling
+  height). It returns a list of human-readable validation messages; the UI shows these and
+  blocks/annotates the result rather than silently computing impossible geometry.
 - Clamp/validate inputs at the control layer (non-negative areas, occupancy, ACH; sane
   ranges) so the model receives valid numbers.
 - Cooling load floored at 0 → no negative electricity when `T_out ≤ setpoint` or AC off.
@@ -342,9 +422,18 @@ changes) for the breakdown panel.
   intervention, occupancy runtime reduction.
 - **Sanity / monotonicity tests:** higher outdoor temp → more cooling; higher occupancy →
   more load; higher setpoint → less cooling; shading → less solar; low-E → less glazing
-  gain; more insulation → less envelope load; fan → more fan electricity + better comfort
-  proxy but ≤ small air-temp change; daylight lighting → less lighting electricity + less
-  internal heat; occupancy AC → less runtime when occupied fraction < 1.
+  gain; more insulation → less envelope load; reflective roof (lower α) → lower roof sol-air
+  and lower roof conduction; fan → more fan electricity + better comfort proxy but ≤ small
+  air-temp change; daylight lighting → lower effective LPD → less lighting electricity +
+  less lighting heat; occupancy lighting → fewer lighting hours → less lighting electricity;
+  occupancy AC → less runtime when occupied fraction < 1.
+- **Capacity / indoor-temp tests:** within capacity → `indoor_temp_c == setpoint`
+  (`basis = 'setpoint'`); demand above capacity → `indoor_temp_c > setpoint` and
+  `cooling_load_w == capacity` (`basis = 'equilibrium'`); gain-reducing interventions lower
+  the equilibrium temperature in capacity-limited cases; equilibrium solver converges
+  deterministically within the iteration cap.
+- **Independent lighting test:** changing `ac_hours_per_day` does not change
+  `lighting_kwh_day`; changing `lighting_hours_per_day` does.
 - **Invariants:** no NaN/Infinity/negative electricity; no negative loads from any
   intervention; determinism (same inputs → same outputs).
 - **Demo regression:** assert the polished example scenario's deltas are produced by the
