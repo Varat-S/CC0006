@@ -5,7 +5,7 @@ simulation and optimisation last). Each task references the requirements it sati
 
 ## Phase 1 — Core model foundation
 
-- [ ] 1. Scaffold the project and config layer
+- [x] 1. Scaffold the project and config layer
   - Initialise a Vite + React + TypeScript app with Vitest, ESLint, Prettier.
   - Create `/src/data/constants.ts` as the single assumptions/config object (air density,
     cp, person loads, COP, fan power, fan comfort offset, shading/lighting/orientation
@@ -14,7 +14,7 @@ simulation and optimisation last). Each task references the requirements it sati
     documented as illustrative).
   - _Requirements: 4.9, 6.3, 9.4_
 
-- [ ] 2. Define the scenario and result types and the baseline scenario
+- [x] 2. Define the scenario and result types and the baseline scenario
   - Implement `/src/model/types.ts` (`Scenario` incl. `lighting_hours_per_day` and
     `hvac_capacity_kw`; `HeatGains` with a separate `roof` term; `SimulationResult` with
     `required_load_w`, `cooling_load_w`, `capacity_limited`, `indoor_temp_basis`;
@@ -23,7 +23,7 @@ simulation and optimisation last). Each task references the requirements it sati
     plus a default lighting-hours and finite HVAC capacity).
   - _Requirements: 1.1, 1.3, 1.4, 4.1, 4.7, 7a.1_
 
-- [ ] 3. Implement geometry derivation, validation, and the envelope + roof models
+- [x] 3. Implement geometry derivation, validation, and the envelope + roof models
   - Derive volume, wall/roof areas from floor area + ceiling height with documented
     comments; implement `validateScenario()` (floor_area>0, ceiling_height>0, ACH>=0,
     occupancy>=0, window_area<=gross_wall_area → validation messages).
@@ -32,14 +32,14 @@ simulation and optimisation last). Each task references the requirements it sati
     reflective roof lowers α (never add absorbed roof solar directly to indoor load).
   - _Requirements: 1.6, 4.2, 4.2a, 13.4_
 
-- [ ] 4. Implement solar and internal-gains models
+- [x] 4. Implement solar and internal-gains models
   - `solarModel.ts`: glazing-only `A_glass·SHGC·I·F_orientation·F_shade` (roof solar handled
     by sol-air in `roofModel.ts`).
   - `internalGains.ts`: occupancy sensible; lighting heat using effective LPD (daylight
     control reduces LPD); plug load. Lighting hours tracked separately for electricity.
   - _Requirements: 4.3, 4.4, 4.5_
 
-- [ ] 5. Implement ventilation, HVAC energy (finite capacity) and the orchestrator
+- [x] 5. Implement ventilation, HVAC energy (finite capacity) and the orchestrator
   - `ventilationModel.ts`: `V̇ = ACH·V/3600`, `ṁ = ρ·V̇`, `Q = ṁ·cp·ΔT` (keeps the
     hot-humid "more ACH → more load" behaviour).
   - `energyModel.ts`: `required_load = max(0, gains@setpoint)`; if `required_load ≤ capacity`
@@ -50,7 +50,7 @@ simulation and optimisation last). Each task references the requirements it sati
   - `simulate.ts`: orchestrate heat balance as `gains(T_in)` → resolve `T_in` → results.
   - _Requirements: 4.1, 4.6, 4.7, 4.8, 7a.2, 7a.3, 13.2, 13.3_
 
-- [ ] 6. Phase-1 unit and sanity tests
+- [x] 6. Phase-1 unit and sanity tests
   - Vitest tests (run with `--run`) for envelope, roof sol-air, solar, occupancy,
     ventilation, HVAC power conversion; monotonicity for outdoor temp, occupancy, setpoint,
     reflective roof; capacity cases (setpoint vs equilibrium, solver convergence);
@@ -59,84 +59,84 @@ simulation and optimisation last). Each task references the requirements it sati
 
 ## Phase 2 — Interactive UI and comparison; first interventions
 
-- [ ] 7. Scenario state and comparison engine
+- [x] 7. Scenario state and comparison engine
   - `/src/app/state/scenarioReducer.ts` (update/reset/applyPreset) and `useScenario.ts`
     hook returning current + baseline results.
   - `compare.ts`: per-metric absolute/% deltas vs baseline + impact-breakdown assembly.
   - _Requirements: 1.5, 7.2, 7.3, 2.4_
 
-- [ ] 8. Control panel and results area shell
+- [x] 8. Control panel and results area shell
   - Building / Environment / Operation control sections (sliders, dropdowns, tooltips);
     result cards; reset-to-baseline button.
   - _Requirements: 2.1, 2.2, 2.3, 2.5, 7.1, 11.1, 11.2, 11.4_
 
-- [ ] 9. Baseline-vs-scenario comparison UI
+- [x] 9. Baseline-vs-scenario comparison UI
   - `ComparisonTable.tsx` / bar chart as the central comparison component.
   - _Requirements: 7.2, 11.2_
 
-- [ ] 10. Interventions: AC setpoint, occupancy, external shading, glazing
+- [x] 10. Interventions: AC setpoint, occupancy, external shading, glazing
   - Wire setpoint and occupancy to the model; add shading dropdown (none/moderate/high) and
     glazing preset (standard/low-E) driving U/SHGC.
   - _Requirements: 3.2, 3.5, 3.6, 2.2, 2.3_
 
 ## Phase 3 — Remaining interventions
 
-- [ ] 11. Fan intervention (comfort offset + fan electricity, not air-temp drop)
+- [x] 11. Fan intervention (comfort offset + fan electricity, not air-temp drop)
   - _Requirements: 3.4_
 
-- [ ] 12. Ventilation (ACH) control and occupancy-responsive AC
+- [x] 12. Ventilation (ACH) control and occupancy-responsive AC
   - ACH slider; occupancy-AC reduces effective runtime by occupied fraction.
   - _Requirements: 3.3, 3.7_
 
-- [ ] 13. Lighting interventions and envelope interventions
+- [x] 13. Lighting interventions and envelope interventions
   - Daylight-responsive lighting (reduce effective LPD → less lighting electricity + heat);
     occupancy-responsive lighting (reduce effective lighting hours); expose
     `lighting_hours_per_day` control; reflective roof (lower α → lower roof sol-air via
     `roofModel.ts`); improved insulation (lower wall/roof U-values).
   - _Requirements: 3.8, 3.9, 3.10, 7a.1, 7a.3_
 
-- [ ] 14. Intervention toggle panel + ≥8 controls verified
+- [x] 14. Intervention toggle panel + ≥8 controls verified
   - `InterventionToggles.tsx` grouping all interventions.
   - _Requirements: 3.1, 11.1, 16.1_
 
 ## Phase 4 — Comfort, provenance, breakdown, charts, methodology
 
-- [ ] 15. Comfort model and status badge
+- [x] 15. Comfort model and status badge
   - `comfortModel.ts` using the resolved indoor temp (setpoint or solved equilibrium) and
     the fan perceived-temp offset (+ RH if available), with configurable thresholds; show a
     color/status badge and label the indoor-temp basis (setpoint vs equilibrium).
   - _Requirements: 6.1, 6.2, 6.4, 6.5, 7.1_
 
-- [ ] 16. Impact-breakdown panel
+- [x] 16. Impact-breakdown panel
   - `ImpactBreakdown.tsx` showing **physical intermediate quantities** baseline → scenario
     (solar gain, envelope conduction, roof conduction, lighting heat, ventilation load in
     kW; HVAC runtime in h; fan electricity in kWh/day) — NOT additive per-intervention
     savings.
   - _Requirements: 7.3_
 
-- [ ] 17. Data provenance and assumptions view
+- [x] 17. Data provenance and assumptions view
   - `/src/data/provenance.ts` with the **structured `Provenance` record** (sourceClass,
     sourceTitle, sourceUrl, accessedDate, note, confidence) for every parameter and material
     preset; `ProvenancePanel.tsx` / Data & Assumptions view surfacing both "what kind of
     source" and "where exactly".
   - _Requirements: 9.1, 9.2, 9.3, 9.5_
 
-- [ ] 18. Scenario presets and preset selector
+- [x] 18. Scenario presets and preset selector
   - `scenarioPresets.ts` (Baseline / Operational optimisation / Low-cost retrofit /
     Envelope retrofit / Combined) + `PresetSelector.tsx`.
   - _Requirements: 8.1, 8.2_
 
-- [ ] 19. Methodology panel and app disclaimers
+- [x] 19. Methodology panel and app disclaimers
   - `MethodologyPanel.tsx` with equations + limitations; proof-of-concept and
     "representative NTU space" framing in the shell; no "digital twin of Gaia".
   - _Requirements: 10.1, 10.2, 10.4_
 
-- [ ] 20. Humidity handling (feature-flagged)
+- [x] 20. Humidity handling (feature-flagged)
   - Always display outdoor RH; implement credible indoor-RH model OR omit indoor RH and
     state latent modelling is future work. Never fabricate RH.
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 21. Edge-case hardening and tests
+- [x] 21. Edge-case hardening and tests
   - Geometry validation (window ≤ gross wall area, positive dimensions, non-negative ACH/
     occupancy) with UI messages; tests for 0 occupants, 0 window, 0 solar, T_out ≤ setpoint,
     very high ventilation, AC off, very small/large room, extreme humidity; capacity-limited
@@ -145,7 +145,7 @@ simulation and optimisation last). Each task references the requirements it sati
     (model-driven, not hardcoded).
   - _Requirements: 13.1, 13.2, 13.3, 13.4, 14.1, 14.2, 14.3, 16.2_
 
-- [ ] 22. Polished example scenario and README
+- [x] 22. Polished example scenario and README
   - Wire the §44 demo (setpoint 25 °C, fan, shading, occupancy-AC, daylight lighting) so all
     numbers come from the model; write README with assumptions, limitations, and the §53
     disclaimer.
