@@ -22,6 +22,8 @@ export interface EconomicAssumptions {
   tariff_sgd_per_kwh: number;
   /** Operating days per year used to annualise daily savings. */
   operating_days_per_year: number;
+  /** Singapore grid emission factor (kg CO2 per kWh). Illustrative; see provenance. */
+  grid_co2_kg_per_kwh: number;
   /** Illustrative capital cost (SGD) for each intervention when enabled. */
   capital_cost_sgd: {
     fan_enabled: number;
@@ -40,6 +42,9 @@ export interface EconomicAssumptions {
 export const ECONOMICS: EconomicAssumptions = {
   tariff_sgd_per_kwh: 0.3, // illustrative SG commercial tariff
   operating_days_per_year: 250, // ~weekday teaching calendar
+  // Representative recent Singapore grid emission factor (EMA). Illustrative — verify the
+  // current published value before any reporting use. Provenance: 'constants.grid_co2_kg_per_kwh'.
+  grid_co2_kg_per_kwh: 0.4168,
   capital_cost_sgd: {
     fan_enabled: 400,
     external_shading: 6000,

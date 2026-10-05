@@ -46,7 +46,10 @@ predicted impact on indoor temperature, thermal comfort, and electricity use —
   bisection, deterministic).
 - **HVAC electricity**: `P = Q_cooling / COP`, `E = P · effective runtime`.
 - **Lighting electricity** is computed **independently** of HVAC hours.
-- **Fan** improves the comfort proxy only; it does not lower room air temperature.
+- **Fan** improves the comfort proxy only; it does not lower room air temperature. Fan
+  runtime is decoupled from HVAC runtime — the fan runs during occupied hours
+  (`ac_hours × occupied_fraction`), representing a "higher setpoint + fan-assisted comfort"
+  strategy.
 - Default model is **sensible-only**: outdoor RH is shown, indoor RH is not predicted
   (latent-load modelling is future work).
 
@@ -106,8 +109,11 @@ See `.kiro/specs/ntu-building-digital-twin/` for the full requirements, design, 
 
 ### Dataset mode (hourly)
 
-The **Hourly** tab simulates a 24-hour day using a representative weekday schedule
-(occupied 08:00–20:00). Use the built-in illustrative Singapore-like day, or upload a CSV
-with columns `timestamp, temperature_c, relative_humidity_pct, solar_irradiance_w_m2,
-wind_speed_m_s`. It plots indoor vs outdoor temperature, HVAC energy, and occupancy over
-the day. Manual mode remains the primary, zero-setup demo path.
+The **Hourly** tab performs **hourly quasi-steady-state scenario analysis** — 24
+independent hourly operating snapshots using hourly weather and a representative weekday
+occupancy schedule (occupied 08:00–20:00). Indoor temperature is not carried forward
+between hours, so this is a sequence of steady-state snapshots, **not** a transient thermal
+simulation. Use the built-in illustrative Singapore-like day, or upload a CSV with columns
+`timestamp, temperature_c, relative_humidity_pct, solar_irradiance_w_m2, wind_speed_m_s`.
+It plots indoor vs outdoor temperature, HVAC energy, and occupancy over the day. Manual
+mode remains the primary, zero-setup demo path.

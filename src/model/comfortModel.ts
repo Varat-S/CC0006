@@ -14,11 +14,16 @@ export function classifyComfort(
   indoor_rh_pct?: number,
   limits: ComfortLimits = COMFORT_LIMITS
 ): Comfort {
-  // Temperature-based classification.
+  // Temperature-based classification, enforcing BOTH a lower and upper bound so that
+  // overcooled (too-cold) conditions are not treated as comfortable.
   let byTemp: Comfort;
-  if (perceived_temp_c <= limits.comfortable_max_c) byTemp = 'comfortable';
-  else if (perceived_temp_c <= limits.borderline_max_c) byTemp = 'borderline';
-  else byTemp = 'outside_target';
+  if (perceived_temp_c < limits.borderline_min_c || perceived_temp_c > limits.borderline_max_c) {
+    byTemp = 'outside_target';
+  } else if (perceived_temp_c < limits.comfortable_min_c || perceived_temp_c > limits.comfortable_max_c) {
+    byTemp = 'borderline';
+  } else {
+    byTemp = 'comfortable';
+  }
 
   // If RH is modelled, it can only worsen (never improve) the status.
   if (indoor_rh_pct === undefined) return byTemp;

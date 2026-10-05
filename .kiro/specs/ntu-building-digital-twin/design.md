@@ -338,14 +338,20 @@ legitimately lower the **equilibrium indoor temperature** in capacity-limited ca
 never claim they change indoor air temperature while assuming unlimited capacity.
 
 ### Fan (Requirement 3.4)
-Adds `fan_kwh_day = fan_power_w/1000 × hours`. Does **not** change `indoor_temp_c`; instead
-`perceived_temp_c = indoor_temp_c − fan_comfort_offset_c`, which feeds comfort only. This is
-labelled a simplified comfort adjustment.
+Adds `fan_kwh_day = fan_power_w/1000 × fan_hours`, where fan runtime is **decoupled** from
+HVAC runtime: `fan_hours = ac_hours_per_day × occupied_fraction` (the fan runs during
+occupied hours, representing a "higher setpoint + fan-assisted comfort" strategy). Does
+**not** change `indoor_temp_c`; instead `perceived_temp_c = indoor_temp_c −
+fan_comfort_offset_c`, which feeds comfort only. In hourly mode the fan runs during occupied
+hours regardless of whether the AC is scheduled on that hour.
 
 ### Comfort (Requirement 6)
 Thresholds from `/data/comfortLimits.ts` (configurable, referencing Singapore/BCA guidance).
-Classify using `perceived_temp_c` (and RH if available): Comfortable / Borderline / Outside
-target, with a status badge. No PMV/PPD claim.
+Classify using `perceived_temp_c` (and RH if available) against BOTH a lower and an upper
+bound (`comfortable_min/max_c`, `borderline_min/max_c`) so that overcooled (too-cold)
+conditions are not treated as comfortable: outside the borderline band → Outside target;
+within borderline but outside comfortable → Borderline; within the comfortable band →
+Comfortable. Status badge shown. No PMV/PPD claim.
 
 ### Totals & comparison
 `total_kwh_day = hvac + lighting + fan (+ plug)`. `compare()` computes per-metric absolute

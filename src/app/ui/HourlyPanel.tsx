@@ -42,8 +42,10 @@ export function HourlyPanel({ scenario }: { scenario: Scenario }) {
   return (
     <div className="hourly-panel">
       <div className="disclaimer">
-        Dataset / hourly mode runs the same single-zone model at each hour using a
-        representative weekday schedule (occupied 08:00–20:00). The built-in day is an
+        <strong>Hourly quasi-steady-state scenario analysis</strong> — 24 independent hourly
+        operating snapshots using hourly weather and a representative weekday occupancy
+        schedule (occupied 08:00–20:00). Indoor temperature is <em>not</em> carried forward
+        between hours, so this is not a transient thermal simulation. The built-in day is an
         illustrative Singapore-like profile — not measured data. Upload a CSV with columns:
         <code> timestamp, temperature_c, relative_humidity_pct, solar_irradiance_w_m2, wind_speed_m_s</code>.
       </div>
@@ -79,7 +81,9 @@ export function HourlyPanel({ scenario }: { scenario: Scenario }) {
         <div className="card">
           <div className="card-label">HVAC electricity</div>
           <div className="card-value">{t.hvac_kwh_day.toFixed(1)}</div>
-          <div className="card-sub">kWh/day</div>
+          <div className="card-sub">
+            kWh/day · plug {t.plug_kwh_day.toFixed(1)} kWh
+          </div>
         </div>
         <div className="card">
           <div className="card-label">Peak indoor temp</div>

@@ -55,9 +55,17 @@ export function MethodologyPanel() {
         in capacity-limited cases.
       </p>
 
+      <h3>Hourly mode</h3>
+      <p>
+        The Hourly tab performs <strong>hourly quasi-steady-state scenario analysis</strong>:
+        24 independent operating snapshots driven by hourly weather and a representative
+        occupancy schedule. Indoor temperature is not carried forward between hours, so it is
+        a sequence of steady-state snapshots rather than a transient thermal simulation.
+      </p>
+
       <h3>Key limitations</h3>
       <ul>
-        <li>Quasi-steady-state, single representative operating point (no transient dynamics).</li>
+        <li>Quasi-steady-state, single representative operating point per snapshot (no transient dynamics; hourly mode is 24 independent snapshots, not a thermal-mass model).</li>
         <li>Simplified orientation factor rather than hourly solar geometry.</li>
         <li>Sensible-only by default; indoor relative humidity is not predicted (outdoor RH is shown). Full latent-load modelling is future work.</li>
         <li>The fan improves the comfort proxy only; it does not lower room air temperature.</li>

@@ -38,9 +38,6 @@ export interface SustainabilitySummary {
   };
 }
 
-/** Illustrative Singapore grid emission factor (kg CO2 per kWh). */
-const GRID_CO2_KG_PER_KWH = 0.4168;
-
 function capitalCost(scenario: Scenario, baseline: Scenario): EconomicResult['activeCostItems'] {
   const c = ECONOMICS.capital_cost_sgd;
   const i = scenario.interventions;
@@ -100,7 +97,7 @@ export function sustainabilitySummary(
     environmental: {
       daily_electricity_delta_kwh: dailyDeltaKwh,
       daily_electricity_delta_pct: dailyDeltaPct,
-      annual_co2_delta_kg: dailyDeltaKwh * ECONOMICS.operating_days_per_year * GRID_CO2_KG_PER_KWH,
+      annual_co2_delta_kg: dailyDeltaKwh * ECONOMICS.operating_days_per_year * ECONOMICS.grid_co2_kg_per_kwh,
     },
     economic: {
       annual_saving_sgd: econ.annual_saving_sgd,

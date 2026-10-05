@@ -313,8 +313,8 @@ describe('edge cases (Requirement 13)', () => {
 });
 
 describe('comfort classification (Requirement 6)', () => {
-  it('classifies by perceived temperature', () => {
-    expect(classifyComfort(23)).toBe('comfortable');
+  it('classifies by perceived temperature within the comfort band', () => {
+    expect(classifyComfort(24)).toBe('comfortable');
     expect(classifyComfort(26)).toBe('borderline');
     expect(classifyComfort(29)).toBe('outside_target');
   });

@@ -6,13 +6,16 @@
  * kept in one editable place. This is a simplified comfort envelope, NOT a PMV/PPD model.
  *
  * Classification uses the (fan-adjusted) perceived temperature, and optionally RH when an
- * indoor humidity model is active.
+ * indoor humidity model is active. BOTH a lower and an upper bound are enforced so that
+ * unrealistically cold (overcooled) conditions are not classified as comfortable.
  */
 
 export interface ComfortLimits {
-  /** At or below this perceived temperature => Comfortable (upper edge of comfort). */
+  /** Comfortable band (perceived temperature). */
+  comfortable_min_c: number;
   comfortable_max_c: number;
-  /** Above comfortable_max_c and at/below this => Borderline; above => Outside target. */
+  /** Borderline band extends below/above the comfortable band; outside it => outside target. */
+  borderline_min_c: number;
   borderline_max_c: number;
   /** Optional RH envelope (used only when indoor RH is modelled). */
   rh_comfortable_max_pct: number;
@@ -20,10 +23,12 @@ export interface ComfortLimits {
 }
 
 export const COMFORT_LIMITS: ComfortLimits = {
-  // Typical SG air-conditioned comfort upper edge ~ 25 C; borderline up to ~ 27 C.
+  // Typical SG air-conditioned comfort band ~ 23-25 C; borderline 22-27 C.
+  comfortable_min_c: 23.0,
   comfortable_max_c: 25.0,
+  borderline_min_c: 22.0,
   borderline_max_c: 27.0,
-  // Indoor RH comfort guidance (BCA Green Mark references ~ 65-70% upper bound).
+  // Indoor RH comfort guidance (SS 554 / BCA Green Mark reference ~ 65-70% upper bound).
   rh_comfortable_max_pct: 65,
   rh_borderline_max_pct: 75,
 };

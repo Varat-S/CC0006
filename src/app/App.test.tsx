@@ -36,7 +36,7 @@ describe('App renders', () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Hourly' }));
-    expect(screen.getByText(/representative weekday schedule/i)).toBeTruthy();
+    expect(screen.getByText(/hourly quasi-steady-state scenario analysis/i)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Optimise' }));
     expect(screen.getByText(/Brute-force search/i)).toBeTruthy();

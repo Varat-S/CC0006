@@ -21,20 +21,22 @@ export interface RoofPresetSpec {
   provenance: Provenance;
 }
 
+const ACCESSED = '2026-10-05';
+
 const engGlazing = (note: string): Provenance => ({
   sourceClass: 'ENGINEERING_REFERENCE',
-  sourceTitle: 'Glazing engineering reference (representative U / SHGC)',
-  sourceUrl: null,
-  accessedDate: null,
+  sourceTitle: 'ASHRAE Handbook — Fundamentals, Ch. 15 (Fenestration); NFRC rated U-factor & SHGC',
+  sourceUrl: 'https://www.nfrc.org/',
+  accessedDate: ACCESSED,
   note,
   confidence: 'medium',
 });
 
 const engRoof = (note: string): Provenance => ({
   sourceClass: 'ENGINEERING_REFERENCE',
-  sourceTitle: 'Roof/surface engineering reference (representative U / absorptance)',
-  sourceUrl: null,
-  accessedDate: null,
+  sourceTitle: 'ASHRAE Handbook — Fundamentals (roof U-value); LBNL Cool Roofs (solar absorptance)',
+  sourceUrl: 'https://heatisland.lbl.gov/coolscience/cool-roofs',
+  accessedDate: ACCESSED,
   note,
   confidence: 'medium',
 });

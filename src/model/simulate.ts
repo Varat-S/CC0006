@@ -30,6 +30,11 @@ function safe(n: number): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function clamp01(x: number): number {
+  if (!Number.isFinite(x)) return 0;
+  return Math.min(1, Math.max(0, x));
+}
+
 /** Compute all sensible heat gains (W) at a given indoor temperature. */
 function computeGains(
   scenario: Scenario,
@@ -174,7 +179,13 @@ export function simulate(scenario: Scenario): SimulationResult {
   const lighting_kwh_day = safe(lighting_kw * Math.max(0, eff.effective_lighting_hours));
 
   // --- Fan electricity: adds consumption, improves comfort proxy only ---
-  const fan_kwh_day = safe((eff.fan_power_w / 1000) * Math.max(0, operation.ac_hours_per_day));
+  // Fan runtime is DECOUPLED from HVAC runtime: the fan runs during OCCUPIED hours
+  // (ac_hours_per_day × occupied_fraction), representing the "higher setpoint + fan-assisted
+  // comfort" strategy rather than running whenever the AC is scheduled on.
+  const fan_hours_per_day = scenario.interventions.fan_enabled
+    ? Math.max(0, operation.ac_hours_per_day) * clamp01(operation.occupied_fraction)
+    : 0;
+  const fan_kwh_day = safe((eff.fan_power_w / 1000) * fan_hours_per_day);
 
   // --- Plug electricity (optional) ---
   const plug_kwh_day = safe(
